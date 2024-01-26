@@ -12,10 +12,10 @@ import java.util.Scanner;
  * 簡易エディタとコンパイル、実行コマンドの簡略化、標準入出力の管理によって
  * 競技プログラミングを支援します。
  * 簡易エディタでは Ctrl+Z でアンドゥ、 Ctrl+S で保存が行えます。<br/>
- * 入力ウィンドウでは、左側に入力し、Emit ボタンを押すことで文字列がプログラムに送信されます。
- * 送信されたデータは右側に表示されます。<br/>
- * 出力ウィンドウでは右側にプログラムが出力された内容が表示され、
- * 左側に文字列を入力して Check ボタンを押すことで出力内容が一致しているかどうかチェックすることができます。
+ * 入力ウィンドウでは、右側に入力し、Emit ボタンを押すことで文字列がプログラムに送信されます。
+ * 送信されたデータは左側に表示されます。<br/>
+ * 出力ウィンドウでは左側にプログラムが出力された内容が表示され、
+ * 右側に文字列を入力して Check ボタンを押すことで出力内容が一致しているかどうかチェックすることができます。
  * このチェックでは区切り文字は無視され、読み取り可能な文字列のみを文字列として一致しているか判定します。
  * 一致している場合はボタンが緑に、不一致なら赤色に変化します。
  */
@@ -391,18 +391,20 @@ public class ProblemHelper{
 
 					System.out.print(".");
 
-					this.br = new BufferedReader(new InputStreamReader(in));
-					this.err = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+					EasyTest t = new EasyTest();
 
-					Thread t = new EasyTest();
+					t.br = new BufferedReader(new InputStreamReader(in));
+					t.err = new BufferedReader(new InputStreamReader(p.getErrorStream()));
 
 					System.out.println("\ndone");
 
 					new InputWindow(new PrintWriter(out,false));
-					this.outputWindow = new OutputWindow();
+					t.outputWindow = new OutputWindow();
 
 					t.start();
 					p.waitFor();
+
+					t.isAlive = false;
 
 				}catch(Exception e){
 					System.out.println();
@@ -414,7 +416,6 @@ public class ProblemHelper{
 				e.printStackTrace();
 			}
 
-			this.isAlive = false;
 		}
 
 		/**
