@@ -12,41 +12,46 @@ import java.util.Scanner;
  * 簡易エディタとコンパイル、実行コマンドの簡略化、標準入出力の管理によって
  * 競技プログラミングを支援します。
  * 簡易エディタでは Ctrl+Z でアンドゥ、 Ctrl+S で保存が行えます。<br/>
- * 入力ウィンドウでは、右側に入力し、Emit ボタンを押すことで文字列がプログラムに送信されます。
+ * 入力ウィンドウでは、左側に入力し、Emit ボタンを押すことで文字列がプログラムに送信されます。
  * 送信されたデータは左側に表示されます。<br/>
- * 出力ウィンドウでは左側にプログラムが出力された内容が表示され、
- * 右側に文字列を入力して Check ボタンを押すことで出力内容が一致しているかどうかチェックすることができます。
+ * 出力ウィンドウでは右側にプログラムが出力された内容が表示され、
+ * 左側に文字列を入力して Check ボタンを押すことで出力内容が一致しているかどうかチェックすることができます。
  * このチェックでは区切り文字は無視され、読み取り可能な文字列のみを文字列として一致しているか判定します。
  * 一致している場合はボタンが緑に、不一致なら赤色に変化します。
  */
 public class ProblemHelper{
 
 	// エディタ
-	private static SimpleTextEditor editor;
+	private final SimpleTextEditor editor;
 	// コンパイル、実行コマンド
-	private static CompileReceiver receiver;
+	private final CompileReceiver receiver;
+	// 実行環境
+	private static final Runtime r;
+
+	static{
+		r = Runtime.getRuntime();
+	}
 
 	public static void main(String[] args){
+		new ProblemHelper();
+	}
+	private ProblemHelper(){
 		// エディタの生成
-		SwingUtilities.invokeLater(()->{
-			editor = new SimpleTextEditor();
-			editor.setVisible(true);
-		});
+		editor = new SimpleTextEditor();
+		SwingUtilities.invokeLater(()->editor.setVisible(true));
 		// コマンド入力ウィンドウの生成
-		SwingUtilities.invokeLater(()->{
-			receiver = new CompileReceiver();
-			receiver.setVisible(true);
-		});
+		receiver = new CompileReceiver();
+		SwingUtilities.invokeLater(()->receiver.setVisible(true));
 	}
 
 	/**
 	 * 指定されたコマンドを元にコンパイルを実行します。
 	 * @param args コンパイルコマンド
 	 */
-	private static void compile(String args){
+	private void compile(String args){
 		new Thread(()->{
 			try{
-				Process p = Runtime.getRuntime().exec(args);
+				Process p = r.exec(args);
 				p.waitFor();
 				System.out.println("---Standard Output---");
 				Scanner out = new Scanner(p.getInputStream());
@@ -67,15 +72,15 @@ public class ProblemHelper{
 	 * 実行コマンドを元に実行します。
 	 * @param args 実行コマンド
 	 */
-	private static void execute(String args){
+	private void execute(String args){
 
-		new Thread(()->new EasyTest().process(args)).start();
+		new Thread(()->EasyTest.process(args)).start();
 	}
 
 	/**
 	 * コンパイル、実行コマンドを入力するウィンドウを生成するクラスです。
 	 */
-	private static class CompileReceiver extends JFrame{
+	private class CompileReceiver extends JFrame{
 		// コンパイルコマンド入力部
 		private final JTextField compileText;
 		// 実行コマンド入力部
@@ -364,45 +369,51 @@ public class ProblemHelper{
 		// 実行プログラムのエラー出力を読み込む用
 		private BufferedReader err;
 		// 実行プログラムが
-		private volatile boolean isAlive = true;
+		private volatile boolean isAlive;
+		// プログラム実行数
+		private static int count;
+		static{
+			count = 0;
+		}
 
 		/**
 		 * 特に意味の無いコンストラクタ
 		 */
-		private EasyTest(){
-		}
+		private EasyTest(){}
 
 		/**
 		 * プログラム実行用のメソッドです。
 		 * @param args 実行コマンド
 		 */
-		public void process(String args){
+		public static void process(String args){
+			
+			final int id = count++;
 
-			System.out.print("starting.");
+			System.out.printf("\nstarting id %d .",id);
 
 			try{
 
-				Process p = Runtime.getRuntime().exec(args);
+				Process p = r.exec(args);
 				System.out.print(".");
 
 				try(InputStream in = p.getInputStream();OutputStream out = p.getOutputStream()){
 
-					isAlive = true;
-
 					System.out.print(".");
 
 					EasyTest t = new EasyTest();
+					t.isAlive = true;
 
 					t.br = new BufferedReader(new InputStreamReader(in));
 					t.err = new BufferedReader(new InputStreamReader(p.getErrorStream()));
 
 					System.out.println("\ndone");
 
-					new InputWindow(new PrintWriter(out,false));
-					t.outputWindow = new OutputWindow();
+					new InputWindow(new PrintWriter(out,false),id);
+					t.outputWindow = new OutputWindow(id);
 
 					t.start();
 					p.waitFor();
+					p.destroy();
 
 					t.isAlive = false;
 
@@ -462,12 +473,13 @@ public class ProblemHelper{
 			// 実行プログラムへ出力する用
 			private final PrintWriter out;
 
-			private InputWindow(PrintWriter out){
+			private InputWindow(PrintWriter out,int id){
 
 				this.out = out;
 
-				this.setTitle("Input");
+				this.setTitle("Input:"+id);
 				this.setSize(600,400);
+				this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
 				this.textArea = new JTextArea();
 				this.textArea.setEditable(true);
@@ -522,10 +534,11 @@ public class ProblemHelper{
 			// Checkボタン用
 			private final JButton button;
 
-			private OutputWindow(){
+			private OutputWindow(int id){
 
-				this.setTitle("Output");
+				this.setTitle("Output:"+id);
 				this.setSize(600,400);
+				this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
 				this.acTextArea = new JTextArea();
 				this.acTextArea.setEditable(true);
@@ -559,7 +572,7 @@ public class ProblemHelper{
 
 			/**
 			 * プログラムから得た文字列を追記します。
-			 * @param text
+			 * @param text 出力内容
 			 */
 			private void emitText(String text){
 				this.textArea.append(text);
